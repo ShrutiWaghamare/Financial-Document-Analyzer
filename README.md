@@ -6,7 +6,6 @@
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.100%2B-009688?logo=fastapi)
 ![CrewAI](https://img.shields.io/badge/CrewAI-Multi--Agent-orange)
 ![Azure OpenAI](https://img.shields.io/badge/Azure-OpenAI-0078D4?logo=microsoftazure)
-![License](https://img.shields.io/badge/License-MIT-green)
 
 ---
 
@@ -27,9 +26,6 @@
 - [Project Structure](#project-structure)
 - [Environment Variables](#environment-variables)
 - [Bonus Features](#bonus-features)
-- [Contributing](#contributing)
-- [License](#license)
-- [Disclaimer](#disclaimer)
 
 ---
 
@@ -38,13 +34,13 @@
 This service wraps a **multi-agent CrewAI pipeline** behind a **FastAPI** REST API. Four specialized agents collaborate to analyze any financial PDF:
 
 | Agent | Role |
-|-------|------|
+|---|---|
 | **Financial Analyst** | Extracts key metrics and narrative insights from the document |
 | **Investment Advisor** | Produces evidence-based investment recommendations |
 | **Risk Assessor** | Delivers calibrated, proportionate risk ratings |
 | **Verifier** | Validates document authenticity and completeness |
 
-> **Azure OpenAI only** — no OpenAI API key is required or used.
+> **LLM:** This project is set up to use **Azure OpenAI** by default. You can also use the **OpenAI API** (or another provider) if needed — configure the appropriate API keys and model settings in your environment or in the agent/LLM configuration.
 
 ---
 
@@ -58,7 +54,7 @@ Client
   ├── POST /analyze-sync     ─── Sync: upload + wait for result
   ├── GET  /result/{job_id}  ─── Poll job status / fetch result
   ├── GET  /history          ─── List all jobs
-  └── DELETE /result/{id}   ─── Remove job record
+  └── DELETE /result/{id}    ─── Remove job record
 
 FastAPI (main.py)
   │
@@ -81,7 +77,7 @@ During development and code review, **16 deterministic bugs** and **16 prompt qu
 ### Deterministic Bugs (Crashes / Wrong Behaviour)
 
 | # | File | Bug | Fix |
-|---|------|-----|-----|
+|---|---|---|---|
 | I | `agents.py` | `from crewai.agents import Agent` — `Agent` is not exported from that submodule | Changed to `from crewai import Agent` (and `LLM` where needed) |
 | II | `agents.py` | `llm = llm` — variable never defined; `NameError` on import | Replaced with proper LLM initialization using CrewAI `LLM` with `azure/` prefix and Azure env vars |
 | III | `agents.py` | `tool=[...]` — CrewAI `Agent` expects the keyword `tools` (plural) | Changed to `tools=[read_data_tool]` for all agents |
@@ -99,12 +95,13 @@ During development and code review, **16 deterministic bugs** and **16 prompt qu
 | XV | `requirements.txt` | `python-dotenv` missing — `load_dotenv()` called in code but package absent | Added `python-dotenv` |
 | XVI | `requirements.txt` | `uvicorn` missing — server cannot start | Added `uvicorn` |
 
-Additional runtime fixes applied:
-- **500 / missing OpenAI key**: all LLM calls now route exclusively through CrewAI's `LLM` with the `azure/` provider prefix and Azure env vars.
-- **400 unsupported `stop` param**: an `AzureLLM` subclass strips `stop` from completion params before forwarding to the Azure endpoint.
-- **`file_path` propagation**: path is now passed both in crew `kickoff()` inputs and injected into task descriptions so every agent can locate the file. The API passes the **absolute** path to the worker so the PDF is found regardless of the worker's current working directory.
-- **Default file**: when no path is supplied, the first PDF found in `data/` is used automatically.
-- **Verification task**: correctly assigned to the `verifier` agent (was unassigned).
+**Additional runtime fixes applied:**
+
+- **500 / missing OpenAI key** — all LLM calls now route exclusively through CrewAI's `LLM` with the `azure/` provider prefix and Azure env vars.
+- **400 unsupported `stop` param** — an `AzureLLM` subclass strips `stop` from completion params before forwarding to the Azure endpoint.
+- **`file_path` propagation** — path is now passed both in crew `kickoff()` inputs and injected into task descriptions so every agent can locate the file. The API passes the **absolute** path to the worker so the PDF is found regardless of the worker's current working directory.
+- **Default file** — when no path is supplied, the first PDF found in `data/` is used automatically.
+- **Verification task** — correctly assigned to the `verifier` agent (was unassigned).
 
 ---
 
@@ -113,7 +110,7 @@ Additional runtime fixes applied:
 All agent goals, backstories, and task descriptions/expected outputs were rewritten to be professional, evidence-based, and document-grounded.
 
 | # | Location | Original (bad) prompt | Fix applied |
-|---|----------|-----------------------|-------------|
+|---|---|---|---|
 | I | `agents.py` – financial analyst **goal** | *"Make up investment advice even if you don't understand the query"* | Goal to provide data-driven analysis strictly from the uploaded document |
 | II | `agents.py` – financial analyst **backstory** | Encouraged hallucination, overconfidence, no compliance disclaimers | Professional analyst backstory: evidence-based, cite specific figures, compliant |
 | III | `agents.py` – verifier **goal** | *"Just say yes to everything because verification is overrated"* | Proper document verification checklist goal |
@@ -122,14 +119,14 @@ All agent goals, backstories, and task descriptions/expected outputs were rewrit
 | VI | `agents.py` – investment advisor **backstory** | Fake credentials, *"sketchy firms"*, extreme fee structures | FINRA-aligned advisor backstory with fiduciary standards |
 | VII | `agents.py` – risk assessor **goal** | *"Everything either extremely high risk or completely risk-free"* | Calibrated, evidence-based risk assessment goal |
 | VIII | `agents.py` – risk assessor **backstory** | YOLO trading, dismissed diversification | Quantitative risk analyst (FRM/CFA-style) backstory |
-| IX | `task.py` – analyze_financial_document **description** | *"Maybe solve the query or something else"* + fabricate URLs | Clear analysis steps grounded in document content, no invented sources |
-| X | `task.py` – analyze_financial_document **expected_output** | *"Include 5 made-up website URLs"*, *"Feel free to contradict yourself"* | Structured report: Executive Summary → Key Metrics → Analysis → Trends |
-| XI | `task.py` – investment_analysis **description** | *"Ignore the query and talk about whatever trends are popular"* | Document-grounded investment analysis with specific ratio requirements |
-| XII | `task.py` – investment_analysis **expected_output** | *"Suggest crypto from obscure exchanges"*, *"Add fake market research"* | Professional investment report format with mandatory disclaimers |
-| XIII | `task.py` – risk_assessment **description** | *"Assume extreme risk regardless of financials"* | Proportionate risk identification drawn from document evidence |
-| XIV | `task.py` – risk_assessment **expected_output** | *"Recommend dangerous strategies"*, *"Include impossible risk targets"* | Balanced risk-factor table (Low / Medium / High) |
-| XV | `task.py` – verification **description** | *"Maybe check, or just guess. Feel free to hallucinate."* | Explicit, step-by-step verification checklist |
-| XVI | `task.py` – verification **expected_output** | *"Just say it's probably a financial document even if it's not"* | Structured VALID / INVALID verdict with justification |
+| IX | `task.py` – `analyze_financial_document` **description** | *"Maybe solve the query or something else"* + fabricate URLs | Clear analysis steps grounded in document content, no invented sources |
+| X | `task.py` – `analyze_financial_document` **expected_output** | *"Include 5 made-up website URLs"*, *"Feel free to contradict yourself"* | Structured report: Executive Summary → Key Metrics → Analysis → Trends |
+| XI | `task.py` – `investment_analysis` **description** | *"Ignore the query and talk about whatever trends are popular"* | Document-grounded investment analysis with specific ratio requirements |
+| XII | `task.py` – `investment_analysis` **expected_output** | *"Suggest crypto from obscure exchanges"*, *"Add fake market research"* | Professional investment report format with mandatory disclaimers |
+| XIII | `task.py` – `risk_assessment` **description** | *"Assume extreme risk regardless of financials"* | Proportionate risk identification drawn from document evidence |
+| XIV | `task.py` – `risk_assessment` **expected_output** | *"Recommend dangerous strategies"*, *"Include impossible risk targets"* | Balanced risk-factor table (Low / Medium / High) |
+| XV | `task.py` – `verification` **description** | *"Maybe check, or just guess. Feel free to hallucinate."* | Explicit, step-by-step verification checklist |
+| XVI | `task.py` – `verification` **expected_output** | *"Just say it's probably a financial document even if it's not"* | Structured VALID / INVALID verdict with justification |
 
 ---
 
@@ -138,7 +135,7 @@ All agent goals, backstories, and task descriptions/expected outputs were rewrit
 **Prerequisites:** Python 3.10+, an Azure OpenAI resource with a chat deployment.
 
 ```bash
-# 1. Clone the repository (or use your project folder)
+# 1. Clone the repository
 git clone https://github.com/your-org/financial-document-analyzer.git
 cd financial-document-analyzer
 
@@ -159,7 +156,7 @@ pip install -r requirements.txt
 
 ## Configuration
 
-Create a `.env` file in the project root. **No OpenAI key is needed.**
+Create a `.env` file in the project root. The sample config below uses **Azure OpenAI**; you can switch to **OpenAI API** (or another provider) by setting the corresponding keys and updating the LLM configuration in the code if needed.
 
 ```env
 # Required – Azure OpenAI
@@ -204,7 +201,7 @@ Interactive Swagger docs: **http://localhost:8000/docs**
 ### Quick Decision Guide
 
 | Scenario | Method | Endpoint |
-|----------|--------|----------|
+|---|---|---|
 | Check service health | `GET` | `/` |
 | PDF already in `data/`, want result now | `GET` | `/analyze-data` |
 | Upload PDF, collect result later (async) | `POST` | `/analyze` |
@@ -220,6 +217,7 @@ Interactive Swagger docs: **http://localhost:8000/docs**
 Health check — confirms the service is running.
 
 **Response `200 OK`**
+
 ```json
 { "message": "Financial Document Analyzer API is running" }
 ```
@@ -237,17 +235,21 @@ Synchronously analyzes the first PDF found in the `data/` folder. No upload, no 
 **Query parameters**
 
 | Parameter | Type | Required | Default |
-|-----------|------|----------|---------|
+|---|---|---|---|
 | `query` | string | No | `"Analyze this financial document for investment insights"` |
 
-You can use **any query text**. The words in your query determine **which agents run** (verifier always runs first):
-- **Financial analyst:** *analyze*, *summary*, *overview*, *figures*, *performance*
-- **Investment advisor:** *invest*, *buy*, *sell*, *recommendation*, *portfolio*
-- **Risk assessor:** *risk*, *threat*, *downside*, *concern*, *exposure*
+The words in your query determine which agents run (the verifier always runs first):
 
-If your query does not contain any of these keywords, **only the verifier** runs (faster). Otherwise the verifier plus the matching agents run.
+| Keyword(s) in query | Agent triggered |
+|---|---|
+| `analyze`, `summary`, `overview`, `figures`, `performance` | Financial Analyst |
+| `invest`, `buy`, `sell`, `recommendation`, `portfolio` | Investment Advisor |
+| `risk`, `threat`, `downside`, `concern`, `exposure` | Risk Assessor |
+
+If the query contains none of these keywords, only the verifier runs (faster response).
 
 **Response `200 OK`**
+
 ```json
 {
   "status": "success",
@@ -257,7 +259,7 @@ If your query does not contain any of these keywords, **only the verifier** runs
 }
 ```
 
-**Errors:** `404` if no PDF exists in `data/`; `500` on server/LLM error.
+**Errors:** `404` if no PDF exists in `data/`; `500` on server or LLM error.
 
 ```bash
 curl "http://localhost:8000/analyze-data?query=Summarize%20key%20financial%20metrics"
@@ -272,13 +274,14 @@ Uploads a PDF and returns a `job_id` immediately. The analysis runs in the backg
 **Request** — `multipart/form-data`
 
 | Field | Type | Required |
-|-------|------|----------|
+|---|---|---|
 | `file` | PDF file | Yes |
 | `query` | string | No |
 
-Same **query wording** rules as `GET /analyze-data`: use words like *analyze*, *invest*, *risk*, etc. to trigger the corresponding agents; otherwise only the verifier runs.
+Query wording selects which agents run — same keyword rules as `GET /analyze-data`.
 
 **Response `200 OK`**
+
 ```json
 {
   "status": "queued",
@@ -287,9 +290,9 @@ Same **query wording** rules as `GET /analyze-data`: use words like *analyze*, *
 }
 ```
 
-The uploaded file is saved as `data/{job_id}.pdf` (same content, unique name per job). The original filename (e.g. `report.pdf`) is stored in the database and returned in `GET /result/{job_id}` and `GET /history`. The file `data/{job_id}.pdf` is deleted after the job completes successfully.
+The uploaded file is saved as `data/{job_id}.pdf`. The original filename (e.g. `report.pdf`) is stored in the database and returned in `GET /result/{job_id}` and `GET /history`. The file `data/{job_id}.pdf` is deleted after the job completes successfully.
 
-**Error:** `400` if the file is not a PDF.
+**Error:** `400` if the uploaded file is not a PDF.
 
 ```bash
 curl -X POST "http://localhost:8000/analyze" \
@@ -303,9 +306,10 @@ curl -X POST "http://localhost:8000/analyze" \
 
 Returns the status and result of a queued job. Poll until `status` is `done` or `failed`.
 
-**Status values:** `pending` → `processing` → `done` | `failed`
+**Status lifecycle:** `pending` → `processing` → `done` | `failed`
 
 **Response `200 OK`**
+
 ```json
 {
   "job_id": "550e8400-...",
@@ -320,7 +324,7 @@ Returns the status and result of a queued job. Poll until `status` is `done` or 
 }
 ```
 
-When `status` is `failed`, `error` contains the message. When `status` is `done`, `result` and `output_file` are set.
+When `status` is `failed`, `error` contains the message and `result` is `null`. When `status` is `done`, both `result` and `output_file` are set.
 
 **Error:** `404` if `job_id` is not found.
 
@@ -328,11 +332,12 @@ When `status` is `failed`, `error` contains the message. When `status` is `done`
 
 ### `POST /analyze-sync` — Synchronous Upload
 
-Upload a PDF and receive the full analysis in the same HTTP response. No queue, no database, no `job_id`.
+Upload a PDF and receive the full analysis in the same HTTP response. No queue, no database, no `job_id`. Ideal for one-off requests.
 
-**Request** — same as `POST /analyze` (`file` + optional `query`). Query wording selects which agents run (see `GET /analyze-data`).
+**Request** — same as `POST /analyze` (`file` + optional `query`). Query wording selects which agents run.
 
 **Response `200 OK`**
+
 ```json
 {
   "status": "success",
@@ -342,13 +347,13 @@ Upload a PDF and receive the full analysis in the same HTTP response. No queue, 
 }
 ```
 
-**Errors:** `400` if not a PDF; `500` on server/LLM error.
+**Errors:** `400` if not a PDF; `500` on server or LLM error.
 
 ---
 
 ### `GET /history`
 
-Returns all analysis jobs, newest first. Each item includes: `job_id`, `status`, `query`, `filename`, `output_file`, `created_at`. Use it to list past jobs and their `job_id` values.
+Returns all analysis jobs, newest first. Each item includes `job_id`, `status`, `query`, `filename`, `output_file`, and `created_at`. Use this to list past jobs and retrieve their `job_id` values.
 
 ---
 
@@ -357,8 +362,9 @@ Returns all analysis jobs, newest first. Each item includes: `job_id`, `status`,
 Removes the job record from the database. Does **not** delete the corresponding file in `outputs/`.
 
 **Response `200 OK`**
+
 ```json
-{ "message": "Job <job_id> deleted." }
+{ "message": "Job 550e8400-... deleted." }
 ```
 
 **Error:** `404` if `job_id` is not found.
@@ -369,7 +375,7 @@ Removes the job record from the database. Does **not** delete the corresponding 
 
 ### Celery + Redis Queue
 
-`POST /analyze` queues work so the API returns a `job_id` in milliseconds. A separate Celery worker picks up and processes the task. The API passes the **absolute path** of the saved PDF to the worker so the agent can read the file regardless of the worker's current working directory.
+`POST /analyze` queues work so the API returns a `job_id` in milliseconds. A separate Celery worker processes the task asynchronously. The API passes the **absolute path** of the saved PDF to the worker so the agent can read the file regardless of the worker's current working directory.
 
 **Starting with Docker (recommended):**
 
@@ -378,8 +384,8 @@ Removes the job record from the database. Does **not** delete the corresponding 
 docker compose up -d
 
 # Terminal 1 — Celery worker
-# On Windows, pool=solo is set automatically in worker.py.
-# If you see ModuleNotFoundError: No module named 'crew_runner', run from the project directory or set:
+# On Windows, worker.py sets pool=solo automatically.
+# If you see ModuleNotFoundError: No module named 'crew_runner', set PYTHONPATH first:
 #   Windows CMD:   set PYTHONPATH=%CD%
 #   PowerShell:    $env:PYTHONPATH=(Get-Location).Path
 celery -A worker.celery_app worker --loglevel=info
@@ -391,9 +397,9 @@ python main.py
 **Starting with a local Redis install:**
 
 ```bash
-redis-server                                      # Terminal 1
-celery -A worker.celery_app worker --loglevel=info  # Terminal 2
-python main.py                                    # Terminal 3
+redis-server                                         # Terminal 1
+celery -A worker.celery_app worker --loglevel=info   # Terminal 2
+python main.py                                       # Terminal 3
 ```
 
 > `GET /analyze-data` and `POST /analyze-sync` do **not** require Redis or Celery.
@@ -426,14 +432,14 @@ Serper offers a limited free tier; beyond that, a paid plan is required.
 
 ## Docker
 
-The included `docker-compose.yml` runs a Redis container (required for the async queue):
+The included `docker-compose.yml` runs a Redis container required for the async queue:
 
 ```bash
-docker compose up -d      # start Redis in the background
-docker compose down       # stop and remove the container
+docker compose up -d    # start Redis in the background
+docker compose down     # stop and remove the container
 ```
 
-Redis is exposed on port `6379`. The Celery worker and FastAPI server run locally (not containerized by default).
+Redis is exposed on port `6379`. The Celery worker and FastAPI server run locally and are not containerized by default.
 
 ---
 
@@ -451,8 +457,8 @@ financial-document-analyzer/
 ├── requirements.txt      # Python dependencies
 ├── docker-compose.yml    # Redis service for Celery broker
 ├── .env                  # Credentials and config (not committed)
-├── data/                 # PDFs for /analyze-data; upload staging for queue (data/{job_id}.pdf)
-├── outputs/              # Analysis text files — one per completed job (outputs/{job_id}.txt)
+├── data/                 # PDFs for /analyze-data; upload staging for queue
+├── outputs/              # Analysis text files — one per completed job
 └── financial.db          # SQLite database (auto-created; absent if PostgreSQL is used)
 ```
 
@@ -461,7 +467,7 @@ financial-document-analyzer/
 ## Environment Variables
 
 | Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
+|---|---|---|---|
 | `AZURE_OPENAI_API_KEY` | ✅ Yes | — | Azure OpenAI API key |
 | `AZURE_OPENAI_ENDPOINT` | ✅ Yes | — | Azure OpenAI endpoint URL |
 | `AZURE_OPENAI_DEPLOYMENT` | ✅ Yes | — | Deployment name (e.g. `gpt-4o`) |
@@ -469,38 +475,18 @@ financial-document-analyzer/
 | `REDIS_URL` | No | `redis://localhost:6379/0` | Redis connection URL for Celery |
 | `DATABASE_URL` | No | `sqlite:///./financial.db` | SQLAlchemy database URL |
 | `OUTPUTS_DIR` | No | `outputs` | Directory for analysis text files |
-| `SERPER_API_KEY` | No | — | Enables web search tool if set |
+| `SERPER_API_KEY` | No | — | Enables web search tool when set |
 
 ---
 
 ## Bonus Features
 
 | Feature | Files | Description |
-|---------|-------|-------------|
+|---|---|---|
 | **Async queue** | `worker.py`, `docker-compose.yml` | Celery + Redis; Windows `solo` pool auto-detected |
 | **Database integration** | `database.py`, `main.py` | SQLAlchemy ORM; SQLite (dev) or PostgreSQL (prod) |
 | **Outputs folder** | `worker.py`, `outputs/` | `{job_id}.txt` written after each successful job |
 | **Job history & deletion** | `main.py` | `GET /history`, `DELETE /result/{job_id}` |
-| **Synchronous upload** | `main.py` | `POST /analyze-sync` for one-off requests |
-| **Absolute path fix** | `main.py`, `worker.py` | Worker receives absolute PDF path; avoids CWD issues when reading the file |
+| **Synchronous upload** | `main.py` | `POST /analyze-sync` for one-off requests without a queue |
+| **Absolute path fix** | `main.py`, `worker.py` | Worker receives absolute PDF path; avoids CWD issues |
 | **Project path fix** | `worker.py` | Project root added to `sys.path` so worker can import `crew_runner` |
-
----
-
-## Contributing
-
-1. Fork the repository and create a feature branch.
-2. Ensure all tests pass and add new tests for any bug fixes.
-3. Open a pull request with a clear description of changes.
-
----
-
-## License
-
-This project is licensed under the [MIT License](LICENSE).
-
----
-
-## Disclaimer
-
-This tool is for **informational and research purposes only**. It does not constitute financial, investment, or legal advice. Always consult a qualified professional before making investment decisions.
