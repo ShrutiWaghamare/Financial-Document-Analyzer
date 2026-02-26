@@ -1,0 +1,34 @@
+# Environment and secrets
+.env
+.env.local
+*.env
+
+# Python
+venv/
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.so
+.eggs/
+*.egg-info/
+*.egg
+
+# Database (local SQLite)
+financial.db
+*.db
+
+# Optional: ignore uploaded PDFs and outputs (uncomment if you don't want to track them)
+# data/*.pdf
+# outputs/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

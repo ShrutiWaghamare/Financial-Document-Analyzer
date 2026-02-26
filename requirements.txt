@@ -1,0 +1,20 @@
+# Only what this project directly needs (pip will pull the rest via crewai)
+
+# Core
+crewai==0.130.0
+crewai-tools==0.47.1
+
+# API server
+fastapi==0.110.3
+uvicorn[standard]>=0.27.0
+python-multipart  # required for FastAPI File() and Form()
+
+# PDF + env
+langchain-community>=0.0.20
+pypdf>=3.0.0
+python-dotenv>=1.0.0
+
+# Queue + database (bonus)
+celery[redis]>=5.3.0
+redis>=5.0.0
+sqlalchemy>=2.0.0
