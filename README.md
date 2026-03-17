@@ -96,11 +96,6 @@ curl -X POST "http://localhost:8000/analyze-sync" \
   -F "query=Summarize in one paragraph (6-8 sentences) and end with a 1-sentence conclusion."
 ```
 
-## Suggested interview queries
-
-- One-paragraph summary: `Summarize this document in exactly one paragraph (6–8 sentences). Include key numbers if present and end with a 1-sentence conclusion.`
-- Investment view: `Based only on this document, give a Buy/Hold/Sell view with 5 supporting points and 3 caveats.`
-- Risks: `List the top 7 risks mentioned or implied. Categorize each risk and give a 1-line mitigation.`
 
 ## Project structure
 
